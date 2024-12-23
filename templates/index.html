@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TranSpeak</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #121212; /* Dark background */
+            color: #ffffff; /* Light text color */
+            font-family: 'Arial', sans-serif;
+        }
+        .container {
+            margin-top: 50px;
+            max-width: 500px;
+            background-color: #1e1e1e; /* Darker container */
+            border-radius: 15px; /* Rounded corners */
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+        .form-control {
+            background-color: #2a2a2a; /* Dark input field */
+            color: #ffffff; /* Light text color */
+            border: 1px solid #444; /* Dark border */
+            border-radius: 10px; /* Rounded corners */
+        }
+        .form-control::placeholder {
+            color: #bbb; /* Placeholder color */
+        }
+        .btn {
+            border-radius: 10px; /* Rounded buttons */
+        }
+        .btn-primary {
+            background-color: #6200ea; /* Custom primary color */
+            border: none;
+        }
+        .btn-primary:hover {
+            background-color: #3700b3; /* Darker on hover */
+        }
+        .btn-success {
+            background-color: #03dac6; /* Custom success color */
+            border: none;
+        }
+        .btn-success:hover {
+            background-color: #018786; /* Darker on hover */
+        }
+        .recording-indicator {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #dc3545; /* Red color for recording message */
+            display: none; /* Hidden by default */
+            text-align: center;
+        }
+        .pulsating-circle {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background-color: #dc3545; /* Red color */
+            margin: 0 auto;
+            animation: pulsate 1s infinite; /* Pulsating animation */
+            display: none; /* Hidden by default */
+        }
+        @keyframes pulsate {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.5);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+        .translation-history {
+            margin-top: 20px;
+            text-align: left;
+        }
+        .translation-item {
+            margin: 5px 0;
+            padding: 10px;
+            border: 1px solid #444; /* Dark border */
+            border-radius: 10px; /* Rounded corners */
+            background-color: #2a2a2a; /* Dark background for items */
+        }
+        .footer {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #bbb; /* Light gray footer text */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center">Real-Time Voice Translator</h1>
+        <form id="translateForm" onsubmit="handleTranslation(event)">
+            <div class="form-group">
+                <label for="sentence">Enter text to translate:</label>
+                <input type="text" id="sentence" name="sentence" class="form-control" placeholder="Or use voice input...">
+            </div>
+            <div class="form-group">
+                <button type="button" id="voiceButton" class="btn btn-primary btn-block" onclick="startDictation()">Start Voice Input</button>
+            </div>
+            <button type="submit" class="btn btn-success btn-block">Translate</button>
+        </form>
+        <div id="recordingIndicator" class="recording-indicator">
+            <div class="pulsating-circle"></div>
+        </div>
+        
+        <div class="translation-history" id="translationHistory"></div>
+    </div>
+
+    <!-- Bootstrap JS and dependencies -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        let translationHistory = []; // Array to store translation history
+
+        function startDictation() {
+            if (window.hasOwnProperty('webkitSpeechRecognition')) {
+                var recognition = new webkitSpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = false;
+
+                recognition.lang = "en-IN"; // Set the language for recognition
+                recognition.start();
+
+                // Change button style and show recording indicator
+                var voiceButton = document.getElementById('voiceButton');
+                voiceButton.classList.add('btn-danger');
+                voiceButton.innerText = "Recording...";
+                document.getElementById('recordingIndicator').style.display = 'block';
+                document.querySelector('.pulsating-circle').style.display = 'block'; // Show pulsating circle
+
+                recognition.onresult = function(e) {
+                    document.getElementById('sentence').value = e.results[0][0].transcript;
+                    recognition.stop();
+                    voiceButton.classList.remove('btn-danger');
+                    voiceButton.innerText = "Start Voice Input";
+                    document.getElementById('recordingIndicator').style.display = 'none'; // Hide recording indicator
+                    document.querySelector('.pulsating-circle').style.display = 'none'; // Hide pulsating circle
+                };
+
+                recognition.onerror = function(e) {
+                    console.error(e);
+                    recognition.stop();
+                    voiceButton.classList.remove('btn-danger');
+                    voiceButton.innerText = "Start Voice Input";
+                    document.getElementById('recordingIndicator').style.display = 'none'; // Hide recording indicator
+                    document.querySelector('.pulsating-circle').style.display = 'none'; // Hide pulsating circle
+                };
+            } else {
+                alert("Your browser does not support speech recognition.");
+            }
+        }
+
+        function handleTranslation(event) {
+            event.preventDefault(); // Prevent the default form submission
+
+            const originalText = document.getElementById('sentence').value;
+            if (!originalText) {
+                alert("Please enter text to translate.");
+                return;
+            }
+
+            // Send the text to the server for translation
+            fetch('/translate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    'sentence': originalText
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Clear the input field
+                document.getElementById('sentence').value = '';
+
+                // Add the translation to history
+                translationHistory.push({ original: originalText, translated: data.translated });
+                updateTranslationHistory();
+
+                // Play the audio automatically
+                playAudio();
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function updateTranslationHistory() {
+            const historyContainer = document.getElementById('translationHistory');
+            historyContainer.innerHTML = ''; // Clear existing history
+            translationHistory.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'translation-item';
+                div.innerHTML = `<strong>Original:</strong> ${item.original}<br><strong>Translated:</strong> ${item.translated}`;
+                historyContainer.appendChild(div);
+            });
+        }
+
+        function playAudio() {
+            const audioFile = 'static/audio/translated.mp3?v=' + new Date().getTime(); // Append timestamp to prevent caching
+            const audio = new Audio(audioFile); // Path to the audio file
+            audio.play().catch(error => {
+                console.error('Error playing audio:', error);
+            });
+        }
+    </script>
+</body>
+</html>
